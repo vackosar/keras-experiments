@@ -77,13 +77,13 @@ def split(J):
     yTest =  np.zeros(TOTAL_SIZE, dtype=np.int8)
     for i in range(0, 99):
         if (random.random() > 0.2):
-            xTrain[trainIndex, 0] = X[i, 0]
-            xTrain[trainIndex, 1] = X[i, 1]
+            xTrain[trainIndex] = X[i]
+            xTrain[trainIndex] = X[i]
             yTrain[trainIndex] = y[trainIndex]
             trainIndex += 1
         else:
-            xTest[testIndex, 0] = X[i, 0]
-            xTest[testIndex, 1] = X[i, 1]
+            xTest[testIndex] = X[i]
+            xTest[testIndex] = X[i]
             yTest[testIndex] = y[testIndex]
             testIndex += 1
     print(xTrain)
