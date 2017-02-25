@@ -8,16 +8,18 @@ from keras.layers import Dense, Dropout, Activation, Flatten, Reshape
 from keras.models import Sequential
 from keras.utils import np_utils
 
-
+NUM_COUNT = 100
+BOOLS_PER_CHAR = 10
+MAX_CHARS_PER_NUM = 2
 NB_CLASSES = 10
 SUM_MEMBER_COUNT = 2
 INPUT_DIM = NB_CLASSES * NB_CLASSES
 OUTPUT_DIM = SUM_MEMBER_COUNT * NB_CLASSES
 TEST_SIZE = 3 * 10
 TRAIN_SIZE = 6 * 10
-TOTAL_SIZE = 100
+TOTAL_SIZE = NUM_COUNT * NUM_COUNT
 batch_size = 128
-nb_epoch = 200
+nb_epoch = 5
 
 np.random.seed(1337)  # for reproducibility
 
@@ -56,12 +58,14 @@ class CharacterTable(object):
 
 
 def genData():
-    input = np.zeros((TOTAL_SIZE, 4, 10), dtype=np.bool)
-    output = np.zeros((TOTAL_SIZE, 2, 10), dtype=np.bool)
-    for x in range(0, 9):
-        for y in range(0, 9):
-            input[x + 10 * y] = TABLE.encode(str(x).zfill(2) + str(y).zfill(2), 4)
-            output[x + 10 * y] = TABLE.encode(str(x + y).zfill(2), 2)
+    input = np.zeros((TOTAL_SIZE, 2 * MAX_CHARS_PER_NUM, BOOLS_PER_CHAR), dtype=np.bool)
+    output = np.zeros((TOTAL_SIZE, 2 * MAX_CHARS_PER_NUM, BOOLS_PER_CHAR), dtype=np.bool)
+    i = 0
+    for x in range(0, NUM_COUNT - 1):
+        for y in range(0, NUM_COUNT - 1):
+            i = i + 1
+            input[i] = TABLE.encode(str(x).zfill(MAX_CHARS_PER_NUM) + str(y).zfill(MAX_CHARS_PER_NUM), 2 * MAX_CHARS_PER_NUM)
+            output[i] = TABLE.encode(str(x + y).zfill(2 * MAX_CHARS_PER_NUM), 2 * MAX_CHARS_PER_NUM)
     return input, output
 
 def split(J):
@@ -69,12 +73,12 @@ def split(J):
     y = J[1]
     trainIndex = 0
     testIndex = 0
-    xTrain = np.zeros((TOTAL_SIZE, 4, 10), dtype=np.bool)
-    yTrain = np.zeros((TOTAL_SIZE, 2, 10), dtype=np.bool)
-    xTest = np.zeros((TOTAL_SIZE, 4, 10), dtype=np.bool)
-    yTest = np.zeros((TOTAL_SIZE, 2, 10), dtype=np.bool)
-    for i in range(0, 99):
-        if (random.random() > 0.2):
+    xTrain = np.zeros((TOTAL_SIZE, 2 * MAX_CHARS_PER_NUM, BOOLS_PER_CHAR), dtype=np.bool)
+    yTrain = np.zeros((TOTAL_SIZE, 2 * MAX_CHARS_PER_NUM, BOOLS_PER_CHAR), dtype=np.bool)
+    xTest = np.zeros((TOTAL_SIZE, 2 * MAX_CHARS_PER_NUM, BOOLS_PER_CHAR), dtype=np.bool)
+    yTest = np.zeros((TOTAL_SIZE, 2 * MAX_CHARS_PER_NUM, BOOLS_PER_CHAR), dtype=np.bool)
+    for i in range(0, TOTAL_SIZE - 1):
+        if (random.random() > 0.1):
             xTrain[trainIndex] = X[i]
             xTrain[trainIndex] = X[i]
             yTrain[trainIndex] = y[trainIndex]
@@ -119,19 +123,27 @@ print(X_test.shape[0], 'test samples')
 model = Sequential()
 
 model.add(Dense(40, input_shape=(4, 10)))
-model.add(Activation('relu'))
-model.add(Dropout(0.1))
+model.add(Activation('tanh'))
+model.add(Dropout(0.3))
+
+# model.add(Dense(100))
+# model.add(Activation('tanh'))
+# model.add(Dropout(0.3))
+#
+# model.add(Dense(100))
+# model.add(Activation('tanh'))
+# model.add(Dropout(0.3))
+#
+# model.add(Dense(100))
+# model.add(Activation('tanh'))
+# model.add(Dropout(0.3))
 
 model.add(Dense(10))
-model.add(Activation('relu'))
-model.add(Dropout(0.1))
-
-model.add(Dense(5))
 model.add(Activation('softmax'))
-model.add(Reshape((2, 10)))
+model.add(Reshape((4, 10)))
 
 model.compile(loss='categorical_crossentropy',
-              optimizer='adadelta',
+              optimizer='adam',
               metrics=['accuracy'])
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
