@@ -4,7 +4,7 @@ import random
 
 import numpy as np
 
-from keras.layers import Dense, Dropout, Activation
+from keras.layers import Dense, Dropout, Activation, Flatten, Reshape
 from keras.models import Sequential
 from keras.utils import np_utils
 
@@ -17,7 +17,7 @@ TEST_SIZE = 3 * 10
 TRAIN_SIZE = 6 * 10
 TOTAL_SIZE = 100
 batch_size = 128
-nb_epoch = 100
+nb_epoch = 200
 
 np.random.seed(1337)  # for reproducibility
 
@@ -56,14 +56,12 @@ class CharacterTable(object):
 
 
 def genData():
-    input = np.zeros((TOTAL_SIZE, 2), dtype=np.int8)
-    output = np.zeros(TOTAL_SIZE, dtype=np.int8)
-    for i in range(0, 99):
-        for x in range(0, 9):
-            for y in range(0, 9):
-                input[x + 10 * y, 0] = x
-                input[x + 10 * y, 1] = y
-                output[x + 10 * y] = x + y
+    input = np.zeros((TOTAL_SIZE, 4, 10), dtype=np.bool)
+    output = np.zeros((TOTAL_SIZE, 2, 10), dtype=np.bool)
+    for x in range(0, 9):
+        for y in range(0, 9):
+            input[x + 10 * y] = TABLE.encode(str(x).zfill(2) + str(y).zfill(2), 4)
+            output[x + 10 * y] = TABLE.encode(str(x + y).zfill(2), 2)
     return input, output
 
 def split(J):
@@ -71,10 +69,10 @@ def split(J):
     y = J[1]
     trainIndex = 0
     testIndex = 0
-    xTrain = np.zeros((TOTAL_SIZE, 2), dtype=np.int8)
-    yTrain =  np.zeros(TOTAL_SIZE, dtype=np.int8)
-    xTest = np.zeros((TOTAL_SIZE, 2), dtype=np.int8)
-    yTest =  np.zeros(TOTAL_SIZE, dtype=np.int8)
+    xTrain = np.zeros((TOTAL_SIZE, 4, 10), dtype=np.bool)
+    yTrain = np.zeros((TOTAL_SIZE, 2, 10), dtype=np.bool)
+    xTest = np.zeros((TOTAL_SIZE, 4, 10), dtype=np.bool)
+    yTest = np.zeros((TOTAL_SIZE, 2, 10), dtype=np.bool)
     for i in range(0, 99):
         if (random.random() > 0.2):
             xTrain[trainIndex] = X[i]
@@ -90,10 +88,9 @@ def split(J):
     return (xTrain[:trainIndex], yTrain[:trainIndex]), (xTest[:testIndex], yTest[:testIndex])
 
 TABLE = CharacterTable(('0123456789'))
-print(TABLE.encode(str(11), 2))
 
 # the data, shuffled and split between train and test sets
-(X_train, y_train), (X_test, y_test) = split(genData())
+(X_train, Y_train), (X_test, Y_test) = split(genData())
 print(X_test)
 
 # if K.image_dim_ordering() == 'th':
@@ -113,24 +110,25 @@ print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, OUTPUT_DIM)
-Y_test = np_utils.to_categorical(y_test, OUTPUT_DIM)
+# Y_train = np_utils.to_categorical(y_train, OUTPUT_DIM)
+# Y_test = np_utils.to_categorical(y_test, OUTPUT_DIM)
 
 
 
 
 model = Sequential()
 
-model.add(Dense(INPUT_DIM, input_dim=2))
+model.add(Dense(40, input_shape=(4, 10)))
 model.add(Activation('relu'))
-model.add(Dropout(0.25))
+model.add(Dropout(0.1))
 
-model.add(Dense(OUTPUT_DIM))
+model.add(Dense(10))
 model.add(Activation('relu'))
-model.add(Dropout(0.25))
+model.add(Dropout(0.1))
 
-model.add(Dense(OUTPUT_DIM))
+model.add(Dense(5))
 model.add(Activation('softmax'))
+model.add(Reshape((2, 10)))
 
 model.compile(loss='categorical_crossentropy',
               optimizer='adadelta',
