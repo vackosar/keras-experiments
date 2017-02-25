@@ -9,25 +9,61 @@ from keras.models import Sequential
 from keras.utils import np_utils
 
 
-nb_classes = 10
+NB_CLASSES = 10
 SUM_MEMBER_COUNT = 2
-INPUT_DIM = nb_classes * nb_classes
-OUTPUT_DIM = SUM_MEMBER_COUNT * nb_classes
+INPUT_DIM = NB_CLASSES * NB_CLASSES
+OUTPUT_DIM = SUM_MEMBER_COUNT * NB_CLASSES
 TEST_SIZE = 3 * 10
 TRAIN_SIZE = 6 * 10
 TOTAL_SIZE = 100
 batch_size = 128
-nb_epoch = 2000
+nb_epoch = 100
 
 np.random.seed(1337)  # for reproducibility
 
+class CharacterTable(object):
+    """Given a set of characters:
+    + Encode them to a one hot integer representation
+    + Decode the one hot integer representation to their character output
+    + Decode a vector of probabilities to their character output
+    """
+    def __init__(self, chars):
+        """Initialize character table.
+
+        # Arguments
+            chars: Characters that can appear in the input.
+        """
+        self.chars = sorted(set(chars))
+        self.char_indices = dict((c, i) for i, c in enumerate(self.chars))
+        self.indices_char = dict((i, c) for i, c in enumerate(self.chars))
+
+    def encode(self, C, num_rows):
+        """One hot encode given string C.
+
+        # Arguments
+            num_rows: Number of rows in the returned one hot encoding. This is
+                used to keep the # of rows for each data the same.
+        """
+        X = np.zeros((num_rows, len(self.chars)))
+        for i, c in enumerate(C):
+            X[i, self.char_indices[c]] = 1
+        return X
+
+    def decode(self, X, calc_argmax=True):
+        if calc_argmax:
+            X = X.argmax(axis=-1)
+        return ''.join(self.indices_char[x] for x in X)
+
+
 def genData():
-    input = np.zeros(TOTAL_SIZE, dtype=np.int8)
+    input = np.zeros((TOTAL_SIZE, 2), dtype=np.int8)
     output = np.zeros(TOTAL_SIZE, dtype=np.int8)
-    for x in range(0, 9):
-        for y in range(0, 9):
-            input[x + 10 * y] = x + 10 * y
-            output[x + 10 * y] = x + y
+    for i in range(0, 99):
+        for x in range(0, 9):
+            for y in range(0, 9):
+                input[x + 10 * y, 0] = x
+                input[x + 10 * y, 1] = y
+                output[x + 10 * y] = x + y
     return input, output
 
 def split(J):
@@ -35,27 +71,30 @@ def split(J):
     y = J[1]
     trainIndex = 0
     testIndex = 0
-    xTrain = np.zeros(TOTAL_SIZE, dtype=np.int8)
+    xTrain = np.zeros((TOTAL_SIZE, 2), dtype=np.int8)
     yTrain =  np.zeros(TOTAL_SIZE, dtype=np.int8)
-    xTest = np.zeros(TOTAL_SIZE, dtype=np.int8)
+    xTest = np.zeros((TOTAL_SIZE, 2), dtype=np.int8)
     yTest =  np.zeros(TOTAL_SIZE, dtype=np.int8)
     for i in range(0, 99):
         if (random.random() > 0.2):
-            xTrain[trainIndex] = X[i]
+            xTrain[trainIndex, 0] = X[i, 0]
+            xTrain[trainIndex, 1] = X[i, 1]
             yTrain[trainIndex] = y[trainIndex]
             trainIndex += 1
         else:
-            xTest[testIndex] = X[i]
+            xTest[testIndex, 0] = X[i, 0]
+            xTest[testIndex, 1] = X[i, 1]
             yTest[testIndex] = y[testIndex]
             testIndex += 1
     print(xTrain)
     return (xTrain[:trainIndex], yTrain[:trainIndex]), (xTest[:testIndex], yTest[:testIndex])
 
-
+TABLE = CharacterTable(('0123456789'))
+print(TABLE.encode(str(11), 2))
 
 # the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = split(genData())
-print(X_train)
+print(X_test)
 
 # if K.image_dim_ordering() == 'th':
 # X_train = X_train.reshape(X_train.shape[0], 1)
@@ -66,8 +105,9 @@ print(X_train)
 #     X_test = X_test.reshape(X_test.shape[0], 1, 1)
 #     input_shape = (1, 1)
 
-X_train = np_utils.to_categorical(X_train, INPUT_DIM)
-X_test = np_utils.to_categorical(X_test, INPUT_DIM)
+# X_train = np_utils.to_categorical(X_train, 2 * NB_CLASSES)
+# X_test = np_utils.to_categorical(X_test, 2 * NB_CLASSES)
+print(X_test)
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
@@ -76,11 +116,18 @@ print(X_test.shape[0], 'test samples')
 Y_train = np_utils.to_categorical(y_train, OUTPUT_DIM)
 Y_test = np_utils.to_categorical(y_test, OUTPUT_DIM)
 
+
+
+
 model = Sequential()
 
-model.add(Dense(OUTPUT_DIM, input_dim=INPUT_DIM))
-model.add(Activation('tanh'))
-model.add(Dropout(0.1))
+model.add(Dense(INPUT_DIM, input_dim=2))
+model.add(Activation('relu'))
+model.add(Dropout(0.25))
+
+model.add(Dense(OUTPUT_DIM))
+model.add(Activation('relu'))
+model.add(Dropout(0.25))
 
 model.add(Dense(OUTPUT_DIM))
 model.add(Activation('softmax'))
@@ -95,4 +142,5 @@ score = model.evaluate(X_test, Y_test, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
 print(model.metrics_names)
+
 
